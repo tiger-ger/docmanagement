@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文書一覧</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        h1 {
+            font-weight: bold;
+            border-bottom: 2px solid #0d6efd;
+            padding-bottom: 10px;
+        }
+        .document-card {
+            background-color: white;
+            border: 1px solid #dee2e6;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+        }
+        .document-meta {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+
+        <!-- 右上に戻るボタン -->
+        <div class="d-flex justify-content-end mb-2">
+            <a href="{% url 'main_menu' %}" class="btn btn-outline-secondary btn-sm">
+                ← メインメニューへ戻る
+            </a>
+        </div>
+
+        <h1>📄 文書一覧</h1>
+
+        <!-- 検索フォーム -->
+<form method="get" class="mb-4">
+    <div class="input-group">
+        <input type="text" name="q" class="form-control" placeholder="文書タイトルまたは説明で検索" value="{{ request.GET.q }}">
+        <button type="submit" class="btn btn-outline-primary">検索</button>
+    </div>
+</form>
+
+
+        {% if documents %}
+            {% for document in documents %}
+                <div class="document-card">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <h5 class="mb-1">
+                                <a href="{{ document.file.url }}" class="text-decoration-none">{{ document.title }}</a>
+                            </h5>
+                            <div class="document-meta">
+                                アップロード日時: {{ document.uploaded_at }} / 作成者: {{ document.created_by.username }}
+                            </div>
+                        </div>
+                        <div>
+                            <a href="{% url 'edit_document' document.id %}" class="btn btn-outline-warning btn-sm me-2">編集</a>
+                            <form action="{% url 'delete_document' document.id %}" method="post" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-outline-danger btn-sm">削除</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+            {% else %}
+            <p class="text-muted mt-4">
+                {% if request.GET.q %}
+                    「{{ request.GET.q }}」に一致する文書は見つかりませんでした。
+                {% else %}
+                    現在、アップロードされた文書はありません。
+                {% endif %}
+            </p>
+        {% endif %}
+
+        <div class="mt-4">
+            <a href="{% url 'upload_document' %}" class="btn btn-primary">📤 文書をアップロードする</a>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

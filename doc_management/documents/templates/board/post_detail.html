@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ post.title }} | 掲示板</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .post-container {
+            background: white;
+            border-radius: 0.75rem;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+        .comment-box {
+            background-color: #ffffff;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            margin-bottom: 1rem;
+        }
+        .comment-meta {
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container my-5">
+        <div class="post-container">
+            <h2 class="mb-3">{{ post.title }}</h2>
+            <p>{{ post.content }}</p>
+            <p class="text-muted">
+                投稿者: {{ post.author.username }} / 投稿日時: {{ post.created_at|date:"Y-m-d H:i" }}
+            </p>
+
+            <hr>
+
+            <h5 class="mt-4 mb-3">💬 コメント</h5>
+            {% if comments %}
+                {% for comment in comments %}
+                <div class="comment-box">
+                    <strong>#{{ forloop.counter }} {{ comment.author.username }}</strong>
+                    <p class="mb-1">{{ comment.content }}</p>
+                    <div class="comment-meta">
+                        投稿日時: {{ comment.created_at|date:"Y-m-d H:i" }}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-muted">コメントはまだありません。</p>
+            {% endif %}
+
+            <hr>
+
+            <h5 class="mt-4 mb-3">📝 コメントを書く</h5>
+            <form method="post">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <button type="submit" class="btn btn-primary">投稿</button>
+            </form>
+
+            <div class="mt-4 text-end">
+                <a href="{% url 'board_list' %}" class="btn btn-secondary">← 掲示板へ戻る</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

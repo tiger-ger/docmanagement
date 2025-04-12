@@ -1,0 +1,12 @@
+from django import forms
+from .models import Document
+
+
+class DocumentForm(forms.ModelForm):
+    class Meta:
+        model = Document
+        fields = ["title", "description", "file"]  # descriptionフィールドを追加
+
+
+class DocumentSearchForm(forms.Form):
+    query = forms.CharField(label="検索", max_length=100, required=False)

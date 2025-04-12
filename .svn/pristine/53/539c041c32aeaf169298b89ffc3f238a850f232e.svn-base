@@ -1,0 +1,295 @@
+import random
+import sys
+
+# プレイヤーのステータス
+player = {
+    "name": "",
+    "hp": 100,
+    "attack": 15,
+    "defense": 5,
+    "level": 1,
+    "exp": 0,
+    "inventory": [],
+    "fatigue": 0,  # 疲労度
+    "money": 100,  # 所持金
+    "skills": [],  # プレイヤーが習得したスキル
+}
+
+# 敵キャラクターのリスト
+enemies = [
+    {"name": "Goblin", "hp": 30, "attack": 10, "defense": 3, "ai": "normal"},
+    {"name": "Orc", "hp": 60, "attack": 20, "defense": 5, "ai": "aggressive"},
+    {"name": "Dragon", "hp": 150, "attack": 40, "defense": 10, "ai": "cautious"},
+]
+
+# アイテム情報
+items = {
+    "health_potion": {
+        "name": "Health Potion",
+        "effect": "heal",
+        "amount": 30,
+        "cost": 50,
+    },
+    "sword": {"name": "Sword", "effect": "attack", "amount": 10, "cost": 100},
+    "shield": {"name": "Shield", "effect": "defense", "amount": 5, "cost": 80},
+}
+
+# プレイヤースキル
+skills = {
+    "fireball": {
+        "name": "Fireball",
+        "effect": "damage",
+        "amount": 25,
+        "cost": 10,
+    },  # 魔法攻撃
+    "heal": {"name": "Heal", "effect": "heal", "amount": 50, "cost": 10},  # 回復魔法
+}
+
+# マップ情報
+locations = {
+    "town": {
+        "name": "Town",
+        "description": "A peaceful town filled with shops and people.",
+    },
+    "forest": {
+        "name": "Forest",
+        "description": "A dark forest full of dangerous creatures.",
+    },
+    "cave": {
+        "name": "Cave",
+        "description": "A deep cave with hidden treasures and powerful monsters.",
+    },
+}
+
+
+# プレイヤーの攻撃
+def player_attack():
+    damage = random.randint(player["attack"] - 5, player["attack"] + 5)
+    print(f"{player['name']}は攻撃した！ダメージ: {damage}")
+    return max(damage - random.randint(0, player["defense"]), 0)
+
+
+# 敵の攻撃
+def enemy_attack(enemy):
+    damage = random.randint(enemy["attack"] - 5, enemy["attack"] + 5)
+    print(f"{enemy['name']}が攻撃した！ダメージ: {damage}")
+    return max(damage - random.randint(0, player["defense"]), 0)
+
+
+# 疲労度の管理
+def manage_fatigue():
+    player["fatigue"] += 1
+    if player["fatigue"] >= 5:
+        player["attack"] -= 2
+        player["defense"] -= 1
+        print(f"{player['name']}は疲れている！攻撃力と防御力が減少した！")
+
+
+# スキルの使用
+def use_skill():
+    print("\n使用するスキルを選んでください。")
+    if not player["skills"]:
+        print("習得したスキルはありません。")
+        return
+
+    print("習得済みスキル:")
+    for i, skill in enumerate(player["skills"], 1):
+        print(f"{i}. {skill['name']}")
+
+    choice = input("使用するスキルの番号を入力してください: ")
+
+    try:
+        skill_index = int(choice) - 1
+        skill = player["skills"][skill_index]
+        if skill["effect"] == "damage":
+            damage = skill["amount"]
+            print(f"{skill['name']}を使った！ダメージ: {damage}")
+            return damage
+        elif skill["effect"] == "heal":
+            player["hp"] += skill["amount"]
+            print(f"{skill['name']}を使った！HP回復: {skill['amount']}")
+            return 0
+    except (ValueError, IndexError):
+        print("無効な選択肢です。")
+
+
+# 敵のAI戦闘行動
+def enemy_behavior(enemy):
+    if enemy["ai"] == "normal":
+        return enemy_attack(enemy)
+    elif enemy["ai"] == "aggressive":
+        return enemy_attack(enemy) * 2  # 攻撃的な敵は強力な攻撃
+    elif enemy["ai"] == "cautious":
+        return enemy_attack(enemy) // 2  # 警戒している敵は攻撃力が低い
+
+
+# 戦闘
+def battle(enemy):
+    print(f"\n{enemy['name']}との戦闘が始まりました！")
+    while player["hp"] > 0 and enemy["hp"] > 0:
+        print(
+            f"\n{player['name']}のHP: {player['hp']} / {enemy['name']}のHP: {enemy['hp']}"
+        )
+        print("1. 攻撃する")
+        print("2. スキルを使用する")
+        print("3. アイテムを使用する")
+        print("4. 逃げる")
+
+        choice = input("選択肢を入力してください: ")
+
+        if choice == "1":
+            damage = player_attack()
+            enemy["hp"] -= damage
+            if enemy["hp"] <= 0:
+                print(f"{enemy['name']}を倒しました！\n")
+                gain_experience(enemy)
+                break
+            damage = enemy_behavior(enemy)
+            player["hp"] -= damage
+            if player["hp"] <= 0:
+                print(f"{player['name']}は倒れました...\n")
+                break
+
+        elif choice == "2":
+            use_skill()
+
+        elif choice == "3":
+            use_item()
+
+        elif choice == "4":
+            print(f"{player['name']}は逃げた！戦闘を終了します。\n")
+            break
+
+        else:
+            print("無効な選択肢です。")
+
+
+# 経験値とレベルアップ
+def gain_experience(enemy):
+    experience = random.randint(10, 30)
+    player["exp"] += experience
+    print(f"{enemy['name']}を倒したことで{experience}経験値を得た！")
+
+    if player["exp"] >= 100:
+        player["level"] += 1
+        player["exp"] = 0
+        player["attack"] += 5
+        player["defense"] += 2
+        print(
+            f"\n{player['name']}はレベルアップした！レベル{player['level']}になり、攻撃力と防御力が増加！"
+        )
+        if player["level"] % 3 == 0:  # 3レベルごとに新しいスキルを習得
+            new_skill = random.choice(list(skills.values()))
+            player["skills"].append(new_skill)
+            print(f"{new_skill['name']}を新しく習得した！")
+
+
+# アイテムの使用
+def use_item():
+    print("\nアイテムを選んで使用します。")
+    if not player["inventory"]:
+        print("所持しているアイテムはありません。")
+        return
+
+    print("所持アイテム:")
+    for i, item in enumerate(player["inventory"], 1):
+        print(f"{i}. {item['name']} (所持金: {item['cost']}G)")
+
+    choice = input("使用したいアイテムの番号を入力してください: ")
+
+    try:
+        item_index = int(choice) - 1
+        item = player["inventory"][item_index]
+        if item["effect"] == "heal":
+            player["hp"] += item["amount"]
+            print(f"{item['name']}を使用して{item['amount']}HP回復！")
+        elif item["effect"] == "attack":
+            player["attack"] += item["amount"]
+            print(f"{item['name']}を装備して攻撃力が{item['amount']}増加！")
+        elif item["effect"] == "defense":
+            player["defense"] += item["amount"]
+            print(f"{item['name']}を装備して防御力が{item['amount']}増加！")
+        player["inventory"].remove(item)
+    except (ValueError, IndexError):
+        print("無効な選択肢です。")
+
+
+# マップの移動
+def move_location():
+    print("\nどこに行きますか？")
+    for key, location in locations.items():
+        print(f"{key}. {location['name']} - {location['description']}")
+
+    choice = input("行きたい場所を選んでください: ")
+
+    if choice in locations:
+        print(f"\n{locations[choice]['name']}に移動しました！")
+        if choice == "forest":
+            enemy = random.choice(enemies[:2])  # 森では弱い敵
+            battle(enemy)
+        elif choice == "cave":
+            enemy = random.choice(enemies)  # 洞窟では強い敵
+            battle(enemy)
+        elif choice == "town":
+            visit_town()
+    else:
+        print("無効な選択肢です。")
+
+
+# 町の訪問
+def visit_town():
+    print("\n町に到着しました。町では買い物ができます。")
+    print("1. アイテムを購入する")
+    print("2. 町を出る")
+
+    choice = input("選択肢を入力してください: ")
+
+    if choice == "1":
+        print("\nアイテムを購入します。")
+        print("1. Health Potion - 50G")
+        print("2. Sword - 100G")
+        print("3. Shield - 80G")
+
+        item_choice = input("購入したいアイテムの番号を入力してください: ")
+
+        if item_choice == "1" and player["money"] >= items["health_potion"]["cost"]:
+            player["inventory"].append(items["health_potion"])
+            player["money"] -= items["health_potion"]["cost"]
+            print("Health Potionを購入しました。")
+        elif item_choice == "2" and player["money"] >= items["sword"]["cost"]:
+            player["inventory"].append(items["sword"])
+            player["money"] -= items["sword"]["cost"]
+            print("Swordを購入しました。")
+        elif item_choice == "3" and player["money"] >= items["shield"]["cost"]:
+            player["inventory"].append(items["shield"])
+            player["money"] -= items["shield"]["cost"]
+            print("Shieldを購入しました。")
+        else:
+            print("所持金が足りません。")
+    elif choice == "2":
+        print("町を出ます。")
+        move_location()
+
+
+# ゲーム開始
+def start_game():
+    print("テキストRPGへようこそ！")
+    player["name"] = input("あなたの名前を入力してください: ")
+
+    while True:
+        print("\n1. 町に移動")
+        print("2. 終了")
+        choice = input("選択してください: ")
+
+        if choice == "1":
+            move_location()
+        elif choice == "2":
+            print("ゲームを終了します。")
+            sys.exit()
+        else:
+            print("無効な選択肢です。")
+
+
+# ゲーム実行
+if __name__ == "__main__":
+    start_game()

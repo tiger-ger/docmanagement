@@ -1,0 +1,190 @@
+from django.shortcuts import render, redirect, get_object_or_404
+from .forms import DocumentForm, DocumentSearchForm
+from .models import Document
+import chardet
+from django.http import HttpResponse, HttpResponseRedirect
+from django.urls import reverse
+import os
+from django.conf import settings
+import mimetypes
+from django.utils.encoding import smart_str
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth import login
+
+
+@login_required
+def document_list(request):
+    form = DocumentSearchForm(request.GET)
+    if form.is_valid():
+        query = form.cleaned_data["query"]
+        documents = Document.objects.filter(title__icontains=query, is_deleted=False)
+    else:
+        documents = Document.objects.filter(is_deleted=False)
+    return render(
+        request, "documents/document_list.html", {"documents": documents, "form": form}
+    )
+
+
+@login_required
+def upload_document(request):
+    if request.method == "POST":
+        form = DocumentForm(request.POST, request.FILES)
+        if form.is_valid():
+            document = form.save(commit=False)
+            document.created_by = request.user
+            document.save()
+
+            # アップロードされたファイルを取得
+            uploaded_file = request.FILES["file"]
+
+            # ファイルのエンコーディングを確認して変換
+            file_content = convert_file_encoding(uploaded_file)
+
+            return redirect("document_list")
+    else:
+        form = DocumentForm()
+    return render(request, "documents/upload_document.html", {"form": form})
+
+
+# ファイルのエンコーディングをUTF-8に変換する関数
+def convert_file_encoding(file):
+    # ファイルの内容をバイナリモードで読み込む
+    raw_data = file.read()
+
+    # chardetライブラリでエンコーディングを推測
+    result = chardet.detect(raw_data)
+    file_encoding = result["encoding"]
+
+    # 推測されたエンコーディングでデコードし、再エンコード
+    if file_encoding:
+        # UTF-8にエンコードしてから戻す
+        file_content = (
+            raw_data.decode(file_encoding, errors="replace")
+            .encode("utf-8")
+            .decode("utf-8")
+        )
+    else:
+        # エンコーディングがわからなければ、デフォルトでUTF-8として扱う
+        file_content = raw_data.decode("utf-8", errors="replace")
+
+    return file_content
+
+
+def my_view(request):
+    return render(request, "documents/test.html")
+
+
+@login_required
+def delete_document(request, document_id):
+    document = get_object_or_404(Document, id=document_id)
+    document.is_deleted = True
+    document.save()
+    return redirect("document_list")
+
+
+@login_required
+def edit_document(request, document_id):
+    document = get_object_or_404(Document, id=document_id)
+    if request.method == "POST":
+        form = DocumentForm(request.POST, request.FILES, instance=document)
+        if form.is_valid():
+            form.save()
+            return redirect("document_list")
+    else:
+        form = DocumentForm(instance=document)
+    return render(
+        request, "documents/edit_document.html", {"form": form, "document": document}
+    )
+
+
+@login_required
+def view_text_file(request, filename):
+    # ファイルパスを取得
+    file_path = os.path.join(settings.MEDIA_ROOT, "documents", filename)
+
+    # ファイルが存在するか確認
+    if not os.path.exists(file_path):
+        return HttpResponse("ファイルが見つかりません", status=404)
+
+    # ファイルを読み込んで内容を取得
+    with open(file_path, "r", encoding="utf-8") as file:
+        file_content = file.read()
+
+    # 内容をHttpResponseとして返す
+    return HttpResponse(file_content, content_type="text/plain; charset=utf-8")
+
+
+@login_required
+def serve_document(request, path):
+    # 先頭のスラッシュを削除
+    if path.startswith("/"):
+        path = path[1:]
+
+    file_path = os.path.join(
+        settings.MEDIA_ROOT, "documents", path
+    )  # 'documents'ディレクトリを追加
+    print(f"File path: {file_path}")  # デバッグ用にファイルパスを出力
+    if not os.path.exists(file_path):
+        return HttpResponse("File not found.", status=404)
+
+    with open(file_path, "rb") as f:
+        raw_data = f.read()
+        result = chardet.detect(raw_data)
+        file_encoding = result["encoding"]
+        if file_encoding:
+            file_content = raw_data.decode(file_encoding, errors="replace").encode(
+                "utf-8"
+            )
+        else:
+            file_content = raw_data.decode("utf-8", errors="replace").encode("utf-8")
+
+    response = HttpResponse(file_content, content_type="text/plain; charset=utf-8")
+    response["Content-Disposition"] = "inline; filename=%s" % smart_str(
+        os.path.basename(file_path)
+    )
+    return response
+
+
+@login_required
+def view_document(request, path):
+    # 先頭のスラッシュを削除
+    if path.startswith("/"):
+        path = path[1:]
+
+    file_path = os.path.join(settings.MEDIA_ROOT, "documents", path)
+    print(f"File path: {file_path}")  # デバッグ用にファイルパスを出力
+    if not os.path.exists(file_path):
+        return HttpResponse("File not found.", status=404)
+
+    with open(file_path, "rb") as f:
+        raw_data = f.read()
+        result = chardet.detect(raw_data)
+        file_encoding = result["encoding"]
+        if file_encoding:
+            file_content = raw_data.decode(file_encoding, errors="replace")
+        else:
+            file_content = raw_data.decode("utf-8", errors="replace")
+
+    return render(
+        request,
+        "documents/view_document.html",
+        {"file_content": file_content, "file_name": os.path.basename(file_path)},
+    )
+
+
+def register(request):
+    if request.method == "POST":
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user)
+            return redirect("document_list")
+    else:
+        form = UserCreationForm()
+    return render(request, "registration/register.html", {"form": form})
+
+
+@login_required
+def profile(request):
+    return render(request, "registration/profile.html")
